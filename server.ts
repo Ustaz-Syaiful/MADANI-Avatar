@@ -13,6 +13,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
+// Flag to track whether the active API key supports paid image models or operates on free multimodal tier
+let isImageQuotaAvailable = true;
+
 // Body parsers with generous limits for webcam base64 payloads
 app.use(express.json({ limit: '35mb' }));
 app.use(express.urlencoded({ extended: true, limit: '35mb' }));
@@ -101,61 +104,55 @@ app.post('/api/generate-avatar', async (req, res) => {
 
     const promptText = buildAvatarPrompt(styleId, customNotes);
 
-    // List candidate models for image editing/generation
-    const modelsToTry = [
-      'gemini-3.1-flash-lite-image',
-      'gemini-nano-banana-2.1',
-      'gemini-2.5-flash-image',
-    ];
-
     let generatedImageUrl: string | null = null;
     let lastError: any = null;
 
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[MADANI Avatar] Memulakan penjanaan menggunakan model: ${modelName}...`);
+    // Check candidate models only if image quota is available
+    if (isImageQuotaAvailable) {
+      const modelsToTry = [
+        'gemini-3.1-flash-lite-image',
+      ];
 
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: {
-            parts: [
-              {
-                inlineData: {
-                  data: cleanBase64,
-                  mimeType: mimeType || 'image/jpeg',
+      for (const modelName of modelsToTry) {
+        try {
+          console.log(`[MADANI Avatar] Memulakan penjanaan menggunakan model: ${modelName}...`);
+
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: {
+              parts: [
+                {
+                  inlineData: {
+                    data: cleanBase64,
+                    mimeType: mimeType || 'image/jpeg',
+                  },
                 },
-              },
-              {
-                text: promptText,
-              },
-            ],
-          },
-        });
+                {
+                  text: promptText,
+                },
+              ],
+            },
+          });
 
-        // Search for image in returned parts
-        const parts = response.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) {
-          if (part.inlineData && part.inlineData.data) {
-            const returnedMime = part.inlineData.mimeType || 'image/png';
-            generatedImageUrl = `data:${returnedMime};base64,${part.inlineData.data}`;
-            console.log(`[MADANI Avatar] Berjaya dijana dengan ${modelName}! Masa: ${(Date.now() - startTime) / 1000}s`);
+          const parts = response.candidates?.[0]?.content?.parts || [];
+          for (const part of parts) {
+            if (part.inlineData && part.inlineData.data) {
+              const returnedMime = part.inlineData.mimeType || 'image/png';
+              generatedImageUrl = `data:${returnedMime};base64,${part.inlineData.data}`;
+              console.log(`[MADANI Avatar] Berjaya dijana dengan ${modelName}!`);
+              break;
+            }
+          }
+
+          if (generatedImageUrl) break;
+        } catch (err: any) {
+          lastError = err;
+          const errMsg = String(err?.message || '');
+          if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+            console.log('[MADANI Avatar] Kunci API berada pada pelan percuma (had kuota model imej = 0). Beralih secara automatik ke gemini-3.8-flash.');
+            isImageQuotaAvailable = false;
             break;
           }
-        }
-
-        if (generatedImageUrl) {
-          break;
-        } else {
-          console.warn(`[MADANI Avatar] Model ${modelName} membalas tetapi tiada bahagian imej ditemui.`);
-        }
-      } catch (err: any) {
-        lastError = err;
-        console.error(`[MADANI Avatar] Ralat dengan model ${modelName}:`, err?.message || err);
-        // If free-tier quota limit is 0 (429 RESOURCE_EXHAUSTED), break immediately to avoid client timeout!
-        const errMsg = String(err?.message || '');
-        if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('rate-limit')) {
-          console.warn('[MADANI Avatar] Kuota model imej dihadkan pada pelan percuma. Beralih serta-merta kepada gemini-3.8-flash.');
-          break;
         }
       }
     }

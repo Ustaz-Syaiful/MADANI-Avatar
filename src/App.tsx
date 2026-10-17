@@ -171,7 +171,13 @@ export default function App() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data || !data.success) {
-        setGenerationError(data?.error || `Pelayan membalas dengan status: ${response.status}`);
+        if (response.status === 404) {
+          setGenerationError(
+            'Ralat 404: Laluan API pelayan tidak ditemui pada domain ini. Sila buka aplikasi melalui pautan rasmi Google AI Studio, atau pastikan fungsi /api telah dikemaskini di Vercel.'
+          );
+        } else {
+          setGenerationError(data?.error || `Pelayan membalas dengan status: ${response.status}`);
+        }
         setGenerationErrorDetails(data?.errorDetails || `Status HTTP: ${response.status}`);
         setIsGenerating(false);
         return;
