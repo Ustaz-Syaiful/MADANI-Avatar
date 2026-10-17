@@ -1,0 +1,6 @@
+{
+  "name": "MADANI AI Avatar Studio",
+  "description": "Aplikasi kiosk interaktif Karnival MADANI PPD Kulim Bandar Baharu untuk menukarkan gambar murid kepada avatar kartun 3D comel dengan kad kenangan senderamata sedia cetak.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
