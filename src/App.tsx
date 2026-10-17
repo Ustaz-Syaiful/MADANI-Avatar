@@ -16,6 +16,7 @@ import { PrivacyNoticeModal } from './components/PrivacyNoticeModal';
 import { TimeoutWarningModal } from './components/TimeoutWarningModal';
 import { AVATAR_STYLES, DEFAULT_KIOSK_CONFIG } from './constants';
 import { AppStep, AvatarStyle, KioskConfig } from './types';
+import { stylizeTo3DAnimation } from './utils/cartoonStylizer';
 
 export default function App() {
   // App Step State
@@ -183,7 +184,16 @@ export default function App() {
         return;
       }
 
-      setAvatarResult(data.imageUrl);
+      let finalAvatar = data.imageUrl;
+      if (data.isPhotoWithAiBadge) {
+        finalAvatar = await stylizeTo3DAnimation(data.imageUrl, {
+          styleId,
+          aiTitle: data.aiTitle,
+          customNotes: notes,
+        });
+      }
+
+      setAvatarResult(finalAvatar);
       setAiCharacterTitle(data.aiTitle || null);
       setGenerationTimeMs(data.generationTimeMs || Date.now() - startTime);
       setIsGenerating(false);
