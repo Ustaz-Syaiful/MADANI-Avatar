@@ -151,6 +151,12 @@ app.post('/api/generate-avatar', async (req, res) => {
       } catch (err: any) {
         lastError = err;
         console.error(`[MADANI Avatar] Ralat dengan model ${modelName}:`, err?.message || err);
+        // If free-tier quota limit is 0 (429 RESOURCE_EXHAUSTED), break immediately to avoid client timeout!
+        const errMsg = String(err?.message || '');
+        if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('rate-limit')) {
+          console.warn('[MADANI Avatar] Kuota model imej dihadkan pada pelan percuma. Beralih serta-merta kepada gemini-3.8-flash.');
+          break;
+        }
       }
     }
 

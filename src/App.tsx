@@ -168,11 +168,11 @@ export default function App() {
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
-      if (!response.ok || !data.success) {
-        setGenerationError(data.error || 'Penjanaan avatar AI gagal.');
-        setGenerationErrorDetails(data.errorDetails || `Status HTTP: ${response.status}`);
+      if (!response.ok || !data || !data.success) {
+        setGenerationError(data?.error || `Pelayan membalas dengan status: ${response.status}`);
+        setGenerationErrorDetails(data?.errorDetails || `Status HTTP: ${response.status}`);
         setIsGenerating(false);
         return;
       }

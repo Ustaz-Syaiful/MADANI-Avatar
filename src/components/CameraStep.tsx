@@ -220,8 +220,21 @@ export const CameraStep: React.FC<CameraStepProps> = ({
       }
     }
 
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
+    const maxDim = 800;
+    let finalWidth = targetWidth;
+    let finalHeight = targetHeight;
+    if (finalWidth > maxDim || finalHeight > maxDim) {
+      if (finalWidth >= finalHeight) {
+        finalHeight = Math.round((finalHeight * maxDim) / finalWidth);
+        finalWidth = maxDim;
+      } else {
+        finalWidth = Math.round((finalWidth * maxDim) / finalHeight);
+        finalHeight = maxDim;
+      }
+    }
+
+    canvas.width = finalWidth;
+    canvas.height = finalHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -232,23 +245,43 @@ export const CameraStep: React.FC<CameraStepProps> = ({
 
     ctx.drawImage(video, startX, startY, targetWidth, targetHeight, 0, 0, canvas.width, canvas.height);
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     setCapturedPhoto(dataUrl);
     stopCamera();
   };
 
-  // Upload fallback
+  // Upload fallback with client-side image compression
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setCapturedPhoto(result);
-        stopCamera();
-      }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 800;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.85));
+          stopCamera();
+        }
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
