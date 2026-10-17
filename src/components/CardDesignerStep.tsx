@@ -11,6 +11,7 @@ interface CardDesignerStepProps {
   userPhoto: string;
   style: AvatarStyle;
   config: KioskConfig;
+  aiTitle?: string | null;
   onResetAndStartNew: () => void;
   onBackToEdit: () => void;
 }
@@ -19,6 +20,7 @@ export const CardDesignerStep: React.FC<CardDesignerStepProps> = ({
   avatarUrl,
   style,
   config,
+  aiTitle,
   onResetAndStartNew,
   onBackToEdit,
 }) => {
@@ -428,6 +430,13 @@ export const CardDesignerStep: React.FC<CardDesignerStepProps> = ({
                 <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5">
                   CENDERAMATA KENANGAN KHAS
                 </p>
+
+                {aiTitle && (
+                  <div className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-extrabold mb-1 shadow-xs">
+                    <Sparkles className="w-3 h-3 text-amber-600 fill-amber-400" />
+                    <span>{aiTitle}</span>
+                  </div>
+                )}
 
                 <h4 className="text-sm sm:text-base font-black text-slate-900 tracking-wide leading-tight truncate">
                   {studentName || 'MURID KEBANGGAAN'}

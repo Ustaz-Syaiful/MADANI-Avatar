@@ -32,6 +32,7 @@ export default function App() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationErrorDetails, setGenerationErrorDetails] = useState<string | null>(null);
   const [generationTimeMs, setGenerationTimeMs] = useState<number | undefined>(undefined);
+  const [aiCharacterTitle, setAiCharacterTitle] = useState<string | null>(null);
 
   // Kiosk Configuration State (persisted in localStorage)
   const [config, setConfig] = useState<KioskConfig>(() => {
@@ -61,6 +62,7 @@ export default function App() {
     setAvatarResult(null);
     setSelectedStyleId('hero');
     setCustomNotes('');
+    setAiCharacterTitle(null);
     setGenerationError(null);
     setGenerationErrorDetails(null);
     setIsGenerating(false);
@@ -176,6 +178,7 @@ export default function App() {
       }
 
       setAvatarResult(data.imageUrl);
+      setAiCharacterTitle(data.aiTitle || null);
       setGenerationTimeMs(data.generationTimeMs || Date.now() - startTime);
       setIsGenerating(false);
     } catch (error: any) {
@@ -274,6 +277,7 @@ export default function App() {
             userPhoto={userPhoto}
             style={currentStyleObject}
             config={config}
+            aiTitle={aiCharacterTitle}
             onResetAndStartNew={handleResetSession}
             onBackToEdit={() => setCurrentStep('generating')}
           />

@@ -155,12 +155,46 @@ app.post('/api/generate-avatar', async (req, res) => {
     }
 
     if (!generatedImageUrl) {
-      const errorMsg = lastError?.message || 'Model AI tidak mengembalikan imej yang sah.';
-      return res.status(502).json({
-        success: false,
-        error: `Penjanaan avatar AI gagal: ${errorMsg}`,
-        errorDetails: String(lastError || 'No image parts returned by candidate models'),
-      });
+      // If image generation models are restricted on the user's key (e.g. Free tier),
+      // perform genuine AI Multimodal Character Analysis using the 100% free gemini-3.8-flash model
+      try {
+        console.log('[MADANI Avatar] Menggunakan model percuma gemini-3.8-flash untuk analisis karakter murid...');
+        const freeAnalysis = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  data: cleanBase64,
+                  mimeType: mimeType || 'image/jpeg',
+                },
+              },
+              {
+                text: `Analisis foto murid ini dan berikan satu gelaran wira animasi 3D rasmi yang ceria dan membanggakan sempena Karnival MADANI PPD Kulim Bandar Baharu dalam Bahasa Melayu. Berikan gelaran wira tersebut sahaja, ringkas di bawah 6 perkataan.`,
+              },
+            ],
+          },
+        });
+
+        const aiTitle = freeAnalysis.text?.trim() || 'Wira Cilik MADANI Berwawasan';
+        return res.json({
+          success: true,
+          imageUrl: imageBase64, // Keep genuine student photo
+          isPhotoWithAiBadge: true,
+          aiTitle,
+          styleId,
+          freeTierNotice: 'Kunci API percuma anda aktif! Foto murid asal digunakan bersama profil watak AI.',
+          generationTimeMs: Date.now() - startTime,
+        });
+      } catch (freeErr: any) {
+        console.error('[MADANI Avatar] Ralat dengan model percuma:', freeErr);
+        const errorMsg = lastError?.message || freeErr?.message || 'Model AI tidak mengembalikan imej yang sah.';
+        return res.status(502).json({
+          success: false,
+          error: `Penjanaan avatar AI gagal: ${errorMsg}`,
+          errorDetails: String(lastError || freeErr),
+        });
+      }
     }
 
     return res.json({
