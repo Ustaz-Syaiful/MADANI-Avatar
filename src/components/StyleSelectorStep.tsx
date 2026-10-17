@@ -110,25 +110,36 @@ export const StyleSelectorStep: React.FC<StyleSelectorStepProps> = ({
                 </div>
               </div>
 
-              {/* Visual Card Banner */}
+              {/* Visual Card Banner with 3D Render Image */}
               <div
-                className={`w-full h-24 rounded-xl ${style.previewGradient} p-3 mb-3 text-white flex flex-col justify-between shadow-inner relative overflow-hidden`}
+                className="w-full h-32 rounded-xl bg-slate-900 mb-3 text-white flex flex-col justify-between shadow-inner relative overflow-hidden group"
               >
-                <div className="absolute right-2 -bottom-2 opacity-15">
-                  <IconComponent className="w-24 h-24" />
-                </div>
+                {style.imagePreviewUrl ? (
+                  <img
+                    src={style.imagePreviewUrl}
+                    alt={style.name}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className={`absolute inset-0 ${style.previewGradient}`} />
+                )}
 
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-xs flex items-center justify-center">
-                    <IconComponent className="w-4 h-4 text-white" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-slate-950/40" />
+
+                <div className="relative z-10 flex items-center justify-between p-2">
+                  <div className="w-7 h-7 rounded-lg bg-black/40 backdrop-blur-xs flex items-center justify-center">
+                    <IconComponent className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-xs font-bold text-white/90 drop-shadow-xs">
-                    {style.tagline}
+                  <span className="text-[10px] font-bold text-white/95 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs">
+                    3D Disney/Pixar
                   </span>
                 </div>
 
-                <div className="text-[11px] font-semibold text-white/80 z-10">
-                  Animasi 3D Studio
+                <div className="relative z-10 p-2">
+                  <span className="text-xs font-black text-amber-300 drop-shadow-md">
+                    {style.tagline}
+                  </span>
                 </div>
               </div>
 

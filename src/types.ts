@@ -10,6 +10,7 @@ export interface AvatarStyle {
   iconName: string;
   previewGradient: string;
   features: string[];
+  imagePreviewUrl?: string;
 }
 
 export type CardTemplateId = 

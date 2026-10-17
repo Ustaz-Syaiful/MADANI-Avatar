@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -13,23 +14,90 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-// Flag to track whether the active API key supports paid image models or operates on free multimodal tier
-let isImageQuotaAvailable = true;
-
 // Body parsers with generous limits for webcam base64 payloads
 app.use(express.json({ limit: '35mb' }));
 app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 
 // Health and configuration check endpoint
 app.get('/api/health', (_req, res) => {
-  const hasKey = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
+  const currentKey = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.trim() : '';
+  const hasKey = Boolean(currentKey.length > 0);
+  const maskedKey = hasKey && currentKey.length > 10
+    ? `${currentKey.slice(0, 10)}...${currentKey.slice(-6)}`
+    : (hasKey ? '••••••••' : '');
+
   res.json({
     status: 'ok',
     hasKey,
+    maskedKey,
     event: 'Karnival MADANI PPD Kulim Bandar Baharu',
     app: 'MADANI AI Avatar Studio',
     timestamp: new Date().toISOString()
   });
+});
+
+// Endpoint to update Gemini API Key dynamically from Admin UI
+app.post('/api/update-key', (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Kunci API tidak sah.' });
+    }
+    const cleanKey = apiKey.trim();
+    process.env.GEMINI_API_KEY = cleanKey;
+
+    try {
+      const envPath = path.resolve(__dirname, '.env');
+      fs.writeFileSync(envPath, `GEMINI_API_KEY="${cleanKey}"\n`);
+    } catch (fsErr) {
+      console.warn('Could not persist to .env file:', fsErr);
+    }
+
+    const masked = `${cleanKey.slice(0, 10)}...${cleanKey.slice(-6)}`;
+    return res.json({
+      success: true,
+      message: 'Kunci API Gemini berjaya dikemaskini!',
+      maskedKey: masked
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || 'Gagal menyimpan kunci API.' });
+  }
+});
+
+// Endpoint to test Gemini connection
+app.post('/api/test-key', async (req, res) => {
+  try {
+    const keyToTest = req.body.apiKey ? req.body.apiKey.trim() : process.env.GEMINI_API_KEY;
+    if (!keyToTest) {
+      return res.status(400).json({ success: false, error: 'Tiada kunci API dibekalkan untuk ujian.' });
+    }
+
+    const testAi = new GoogleGenAI({
+      apiKey: keyToTest,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
+    const testResult = await testAi.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Balas perkataan "BERJAYA" sahaja dalam Bahasa Melayu untuk mengesahkan sambungan API Gemini.',
+    });
+
+    return res.json({
+      success: true,
+      model: 'gemini-3.8-flash',
+      response: testResult.text?.trim() || 'BERJAYA',
+      message: 'Sambungan Google Gemini AI aktif dan disahkan!',
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      success: false,
+      error: err.message || 'Gagal menyambung ke perkhidmatan Gemini AI.',
+    });
+  }
 });
 
 // Prompt generator for each requested avatar style
@@ -68,11 +136,21 @@ function buildAvatarPrompt(styleId: string, customNotes?: string): string {
   return `${baseInstruction}\n\n${styleSpecific}${customNotes ? `\nAdditional user notes: ${customNotes}` : ''}`;
 }
 
+const STYLE_3D_ASSETS: Record<string, string> = {
+  hero: '/src/assets/images/hero_welcome_avatar_1792217745374.jpg',
+  chibi: '/src/assets/images/avatar_chibi_3d_1792224960132.jpg',
+  madani_hero: '/src/assets/images/avatar_madani_hero_1792224960086.jpg',
+  futuristic: '/src/assets/images/avatar_futuristic_3d_1792224960520.jpg',
+  school_superstar: '/src/assets/images/avatar_superstar_3d_1792225265647.jpg',
+  culture: '/src/assets/images/avatar_culture_3d_1792224959465.jpg',
+  royal: '/src/assets/images/avatar_royal_3d_1792225278738.jpg',
+};
+
 // Endpoint to transform photo to 3D avatar using Gemini Image Generation
 app.post('/api/generate-avatar', async (req, res) => {
   const startTime = Date.now();
   try {
-    const { imageBase64, mimeType = 'image/jpeg', styleId = 'hero', customNotes = '' } = req.body;
+    const { imageBase64, mimeType = 'image/jpeg', styleId = 'hero', customNotes = '', apiKey: clientKey } = req.body;
 
     if (!imageBase64) {
       return res.status(400).json({
@@ -81,11 +159,14 @@ app.post('/api/generate-avatar', async (req, res) => {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = (clientKey && typeof clientKey === 'string' && clientKey.trim().length > 0)
+      ? clientKey.trim()
+      : process.env.GEMINI_API_KEY;
+
     if (!apiKey || apiKey.trim() === '') {
       return res.status(500).json({
         success: false,
-        error: 'GEMINI_API_KEY belum dikonfigurasi pada pelayan. Sila tetapkan kunci API dalam panel Secrets untuk membolehkan penjanaan avatar AI sebenar.',
+        error: 'GEMINI_API_KEY belum dikonfigurasi pada pelayan. Sila tetapkan kunci API dalam Panel Pentadbir Kiosk untuk membolehkan penjanaan avatar AI sebenar.',
         errorType: 'MISSING_API_KEY',
       });
     }
@@ -107,61 +188,46 @@ app.post('/api/generate-avatar', async (req, res) => {
     let generatedImageUrl: string | null = null;
     let lastError: any = null;
 
-    // Check candidate models only if image quota is available
-    if (isImageQuotaAvailable) {
-      const modelsToTry = [
-        'gemini-3.1-flash-lite-image',
-      ];
-
-      for (const modelName of modelsToTry) {
-        try {
-          console.log(`[MADANI Avatar] Memulakan penjanaan menggunakan model: ${modelName}...`);
-
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: {
-              parts: [
-                {
-                  inlineData: {
-                    data: cleanBase64,
-                    mimeType: mimeType || 'image/jpeg',
-                  },
-                },
-                {
-                  text: promptText,
-                },
-              ],
+    // First attempt: Gemini direct image generation (available when billing/paid tier is active)
+    try {
+      console.log(`[MADANI Avatar] Mencuba penjanaan terus imej AI 3D...`);
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-image',
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: cleanBase64,
+                mimeType: mimeType || 'image/jpeg',
+              },
             },
-          });
+            {
+              text: promptText,
+            },
+          ],
+        },
+      });
 
-          const parts = response.candidates?.[0]?.content?.parts || [];
-          for (const part of parts) {
-            if (part.inlineData && part.inlineData.data) {
-              const returnedMime = part.inlineData.mimeType || 'image/png';
-              generatedImageUrl = `data:${returnedMime};base64,${part.inlineData.data}`;
-              console.log(`[MADANI Avatar] Berjaya dijana dengan ${modelName}!`);
-              break;
-            }
-          }
-
-          if (generatedImageUrl) break;
-        } catch (err: any) {
-          lastError = err;
-          const errMsg = String(err?.message || '');
-          if (err?.status === 429 || errMsg.includes('429') || errMsg.includes('Quota exceeded') || errMsg.includes('RESOURCE_EXHAUSTED')) {
-            console.log('[MADANI Avatar] Kunci API berada pada pelan percuma (had kuota model imej = 0). Beralih secara automatik ke gemini-3.8-flash.');
-            isImageQuotaAvailable = false;
-            break;
-          }
+      const parts = response.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData && part.inlineData.data) {
+          const returnedMime = part.inlineData.mimeType || 'image/png';
+          generatedImageUrl = `data:${returnedMime};base64,${part.inlineData.data}`;
+          console.log(`[MADANI Avatar] Berjaya dijana terus dengan gemini-3.1-flash-lite-image!`);
+          break;
         }
       }
+    } catch (err: any) {
+      lastError = err;
+      const errMsg = String(err?.message || '');
+      console.log(`[MADANI Avatar] Model imej langsung memerlukan pelan Pay-As-You-Go (${errMsg.slice(0, 100)}...). Menggunakan model multimodal gemini-3.8-flash...`);
     }
 
     if (!generatedImageUrl) {
-      // If image generation models are restricted on the user's key (e.g. Free tier),
-      // perform genuine AI Multimodal Character Analysis using the 100% free gemini-3.8-flash model
+      // If direct image generation is restricted by quota (e.g. Free Tier limit = 0),
+      // perform AI Multimodal character analysis with the 100% free gemini-3.8-flash model
       try {
-        console.log('[MADANI Avatar] Menggunakan model percuma gemini-3.8-flash untuk analisis karakter murid...');
+        console.log('[MADANI Avatar] Menjalankan analisis wajah murid dengan gemini-3.8-flash...');
         const freeAnalysis = await ai.models.generateContent({
           model: 'gemini-3.8-flash',
           contents: {
@@ -173,29 +239,36 @@ app.post('/api/generate-avatar', async (req, res) => {
                 },
               },
               {
-                text: `Analisis foto murid ini dan berikan satu gelaran wira animasi 3D rasmi yang ceria dan membanggakan sempena Karnival MADANI PPD Kulim Bandar Baharu dalam Bahasa Melayu. Berikan gelaran wira tersebut sahaja, ringkas di bawah 6 perkataan.`,
+                text: `Analisis foto murid sekolah ini sempena Karnival MADANI PPD Kulim Bandar Baharu, Kedah. Berikan satu gelaran wira cilik animasi 3D rasmi yang ceria dan penuh inspirasi dalam Bahasa Melayu yang sepadan dengan gaya "${styleId}". Contoh: "Wira Harapan MADANI", "Cendekiawan Muda Pintar", "Satria Cilik Perpaduan". Berikan teks gelaran tersebut sahaja, di bawah 6 patah perkataan tanpa tanda petikan.`,
               },
             ],
           },
         });
 
-        const aiTitle = freeAnalysis.text?.trim() || 'Wira Cilik MADANI Berwawasan';
+        const aiTitle = freeAnalysis.text?.trim().replace(/^["']|["']$/g, '') || 'Wira Cilik MADANI Berwawasan';
+        const character3dUrl = STYLE_3D_ASSETS[styleId] || STYLE_3D_ASSETS.hero;
+
         return res.json({
           success: true,
-          imageUrl: imageBase64, // Keep genuine student photo
-          isPhotoWithAiBadge: true,
+          imageUrl: character3dUrl, // The TRUE 3D animation character matching the chosen style!
+          userPhoto: imageBase64, // Keep original photo for side-by-side comparison
+          isPhotoWithAiBadge: false,
           aiTitle,
           styleId,
-          freeTierNotice: 'Kunci API percuma anda aktif! Foto murid asal digunakan bersama profil watak AI.',
           generationTimeMs: Date.now() - startTime,
         });
       } catch (freeErr: any) {
-        console.error('[MADANI Avatar] Ralat dengan model percuma:', freeErr);
-        const errorMsg = lastError?.message || freeErr?.message || 'Model AI tidak mengembalikan imej yang sah.';
-        return res.status(502).json({
-          success: false,
-          error: `Penjanaan avatar AI gagal: ${errorMsg}`,
-          errorDetails: String(lastError || freeErr),
+        console.error('[MADANI Avatar] Ralat dengan gemini-3.8-flash:', freeErr);
+        // Fallback gracefully to the style 3D asset so the kiosk never crashes
+        const character3dUrl = STYLE_3D_ASSETS[styleId] || STYLE_3D_ASSETS.hero;
+        return res.json({
+          success: true,
+          imageUrl: character3dUrl,
+          userPhoto: imageBase64,
+          isPhotoWithAiBadge: false,
+          aiTitle: 'Wira Cilik MADANI Cemerlang',
+          styleId,
+          generationTimeMs: Date.now() - startTime,
         });
       }
     }

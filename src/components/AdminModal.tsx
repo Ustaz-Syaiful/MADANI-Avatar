@@ -17,7 +17,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onSaveConfig,
 }) => {
   const [formData, setFormData] = useState<KioskConfig>(config);
-  const [apiHealth, setApiHealth] = useState<{ status: string; hasKey: boolean; timestamp?: string } | null>(null);
+  const [apiHealth, setApiHealth] = useState<{ status: string; hasKey: boolean; maskedKey?: string; timestamp?: string } | null>(null);
   const [isCheckingApi, setIsCheckingApi] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -27,6 +27,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       checkHealth();
     }
   }, [isOpen, config]);
+
+  const [newApiKey, setNewApiKey] = useState<string>('');
+  const [keyUpdateStatus, setKeyUpdateStatus] = useState<{ type: 'idle' | 'loading' | 'success' | 'error'; message: string }>({
+    type: 'idle',
+    message: '',
+  });
 
   const checkHealth = async () => {
     setIsCheckingApi(true);
@@ -38,6 +44,56 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setApiHealth({ status: 'error', hasKey: false });
     } finally {
       setIsCheckingApi(false);
+    }
+  };
+
+  const handleUpdateAndTestKey = async () => {
+    if (!newApiKey.trim()) return;
+    setKeyUpdateStatus({ type: 'loading', message: 'Menguji sambungan AI dengan kunci baru...' });
+
+    try {
+      // 1. Update key on server
+      const updateRes = await fetch('/api/update-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: newApiKey.trim() }),
+      });
+      const updateData = await updateRes.json();
+
+      if (!updateRes.ok || !updateData.success) {
+        setKeyUpdateStatus({
+          type: 'error',
+          message: updateData.error || 'Gagal menyimpan kunci API.',
+        });
+        return;
+      }
+
+      // 2. Test key live with Gemini AI
+      const testRes = await fetch('/api/test-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: newApiKey.trim() }),
+      });
+      const testData = await testRes.json();
+
+      if (testRes.ok && testData.success) {
+        setKeyUpdateStatus({
+          type: 'success',
+          message: `Berjaya! Disahkan aktif dengan model ${testData.model}.`,
+        });
+        setNewApiKey('');
+        checkHealth();
+      } else {
+        setKeyUpdateStatus({
+          type: 'error',
+          message: testData.error || 'Kunci disimpan tetapi gagal menyambung ke Gemini.',
+        });
+      }
+    } catch (err: any) {
+      setKeyUpdateStatus({
+        type: 'error',
+        message: 'Ralat rangkaian semasa menguji kunci API.',
+      });
     }
   };
 
@@ -64,7 +120,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border border-slate-200">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -82,39 +138,78 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </div>
         </div>
 
-        {/* API Status Card */}
-        <div className="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-              apiHealth?.hasKey ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-            }`}>
-              <Key className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-900">Status Gemini AI:</span>
-                <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
-                  apiHealth?.hasKey ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {apiHealth?.hasKey ? 'Kunci API Bersedia' : 'Kunci API Belum Ditetapkan'}
-                </span>
+        {/* API Status & Key Manager Card */}
+        <div className="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                apiHealth?.hasKey ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+              }`}>
+                <Key className="w-4 h-4" />
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {apiHealth?.hasKey
-                  ? 'Pelayan beroperasi sepenuhnya untuk menjana avatar AI sebenar.'
-                  : 'Sila konfigurasikan GEMINI_API_KEY dalam panel Secrets pelayan.'}
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">Status Gemini AI:</span>
+                  <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
+                    apiHealth?.hasKey ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {apiHealth?.hasKey ? 'Kunci API Bersedia' : 'Kunci API Belum Ditetapkan'}
+                  </span>
+                </div>
+                {apiHealth?.maskedKey && (
+                  <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                    Kunci Aktif: <span className="font-bold text-slate-700">{apiHealth.maskedKey}</span>
+                  </p>
+                )}
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={checkHealth}
+              disabled={isCheckingApi}
+              className="text-xs font-bold text-blue-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+            >
+              {isCheckingApi ? 'Memeriksa...' : 'Periksa Semula'}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={checkHealth}
-            disabled={isCheckingApi}
-            className="text-xs font-bold text-blue-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100"
-          >
-            {isCheckingApi ? 'Memeriksa...' : 'Periksa Semula'}
-          </button>
+          {/* Quick Key Updater */}
+          <div className="pt-3">
+            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+              Tukar Kunci API Gemini Baru:
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="password"
+                value={newApiKey}
+                onChange={(e) => setNewApiKey(e.target.value)}
+                placeholder="Tampal API Key baru di sini (AQ.Ab8RN6...)"
+                className="flex-1 text-xs p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+              <button
+                type="button"
+                onClick={handleUpdateAndTestKey}
+                disabled={!newApiKey.trim() || keyUpdateStatus.type === 'loading'}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Activity className="w-3.5 h-3.5" />
+                <span>{keyUpdateStatus.type === 'loading' ? 'Menguji...' : 'Uji & Simpan Kunci'}</span>
+              </button>
+            </div>
+
+            {keyUpdateStatus.message && (
+              <p className={`text-[11px] font-bold mt-2 ${
+                keyUpdateStatus.type === 'success'
+                  ? 'text-emerald-600'
+                  : keyUpdateStatus.type === 'error'
+                  ? 'text-red-600'
+                  : 'text-blue-600'
+              }`}>
+                {keyUpdateStatus.message}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Form */}

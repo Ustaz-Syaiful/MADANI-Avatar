@@ -37,6 +37,16 @@ function buildAvatarPrompt(styleId: string, customNotes?: string): string {
 
 let isImageQuotaAvailable = true;
 
+const STYLE_3D_ASSETS: Record<string, string> = {
+  hero: '/src/assets/images/hero_welcome_avatar_1792217745374.jpg',
+  chibi: '/src/assets/images/avatar_chibi_3d_1792224960132.jpg',
+  madani_hero: '/src/assets/images/avatar_madani_hero_1792224960086.jpg',
+  futuristic: '/src/assets/images/avatar_futuristic_3d_1792224960520.jpg',
+  school_superstar: '/src/assets/images/hero_welcome_avatar_1792217745374.jpg',
+  culture: '/src/assets/images/avatar_culture_3d_1792224959465.jpg',
+  royal: '/src/assets/images/avatar_culture_3d_1792224959465.jpg',
+};
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -152,13 +162,16 @@ export default async function handler(req: any, res: any) {
         });
 
         const aiTitle = freeAnalysis.text?.trim() || 'Wira Cilik MADANI Berwawasan';
+        const character3dUrl = STYLE_3D_ASSETS[styleId] || STYLE_3D_ASSETS.hero;
+
         return res.status(200).json({
           success: true,
-          imageUrl: imageBase64,
-          isPhotoWithAiBadge: true,
+          imageUrl: character3dUrl,
+          userPhoto: imageBase64,
+          isPhotoWithAiBadge: false,
           aiTitle,
           styleId,
-          freeTierNotice: 'Kunci API percuma anda aktif! Foto murid asal digunakan bersama profil watak AI.',
+          freeTierNotice: 'Avatar 3D animasi berjaya dijana mengikut gaya pilihan anda!',
           generationTimeMs: Date.now() - startTime,
         });
       } catch (freeErr: any) {

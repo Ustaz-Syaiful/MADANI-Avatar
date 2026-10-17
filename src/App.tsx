@@ -184,14 +184,11 @@ export default function App() {
         return;
       }
 
-      let finalAvatar = data.imageUrl;
-      if (data.isPhotoWithAiBadge) {
-        finalAvatar = await stylizeTo3DAnimation(data.imageUrl, {
-          styleId,
-          aiTitle: data.aiTitle,
-          customNotes: notes,
-        });
-      }
+      const finalAvatar = data.imageUrl || (await stylizeTo3DAnimation(photoToUse, {
+        styleId,
+        aiTitle: data.aiTitle,
+        customNotes: notes,
+      }));
 
       setAvatarResult(finalAvatar);
       setAiCharacterTitle(data.aiTitle || null);

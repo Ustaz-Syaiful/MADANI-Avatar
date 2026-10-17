@@ -11,6 +11,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Sparkles',
     previewGradient: 'bg-gradient-to-br from-blue-500 via-indigo-600 to-blue-700',
     features: ['Pencahayaan Studio Sinematik', 'Mata Ekspresif 3D', 'Tekstur Rambut Halus'],
+    imagePreviewUrl: '/src/assets/images/hero_welcome_avatar_1792217745374.jpg',
   },
   {
     id: 'chibi',
@@ -22,6 +23,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Smile',
     previewGradient: 'bg-gradient-to-br from-amber-400 via-rose-500 to-pink-600',
     features: ['Proporsi Chibi Comel', 'Senyuman Penuh Keriangan', 'Warna-warni Ceria'],
+    imagePreviewUrl: '/src/assets/images/avatar_chibi_3d_1792224960132.jpg',
   },
   {
     id: 'madani_hero',
@@ -33,6 +35,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'HeartHandshake',
     previewGradient: 'bg-gradient-to-br from-red-600 via-blue-800 to-amber-500',
     features: ['Vest Rasmi Tema MADANI', 'Kilauan Heroik Halus', 'Elemen Warna Bendera'],
+    imagePreviewUrl: '/src/assets/images/avatar_madani_hero_1792224960086.jpg',
   },
   {
     id: 'futuristic',
@@ -44,6 +47,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Zap',
     previewGradient: 'bg-gradient-to-br from-cyan-600 via-teal-700 to-blue-900',
     features: ['Aksen Hologram Neon', 'Kolar Pintar Digital', 'Latar Belakang Siber'],
+    imagePreviewUrl: '/src/assets/images/avatar_futuristic_3d_1792224960520.jpg',
   },
   {
     id: 'school_superstar',
@@ -55,6 +59,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Award',
     previewGradient: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-blue-700',
     features: ['Uniform Sekolah Kemas', 'Lencana Bintang Emas', 'Gaya Potret Cendekiawan'],
+    imagePreviewUrl: '/src/assets/images/avatar_superstar_3d_1792225265647.jpg',
   },
   {
     id: 'culture',
@@ -66,6 +71,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Palette',
     previewGradient: 'bg-gradient-to-br from-purple-700 via-indigo-700 to-rose-700',
     features: ['Busana Tradisional Sopan', 'Sulaman Corak Songket', 'Pencahayaan Mesra Budaya'],
+    imagePreviewUrl: '/src/assets/images/avatar_culture_3d_1792224959465.jpg',
   },
   {
     id: 'royal',
@@ -77,6 +83,7 @@ export const AVATAR_STYLES: AvatarStyle[] = [
     iconName: 'Crown',
     previewGradient: 'bg-gradient-to-br from-amber-600 via-yellow-600 to-stone-800',
     features: ['Blazer Bersulam Emas', 'Pencahayaan Studio Diraja', 'Potret Berwibawa'],
+    imagePreviewUrl: '/src/assets/images/avatar_royal_3d_1792225278738.jpg',
   },
 ];
 
